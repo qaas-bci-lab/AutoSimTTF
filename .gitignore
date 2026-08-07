@@ -1,0 +1,36 @@
+# MATLAB
+*.m~
+*.asv
+*.mat
+!data/cap*.mat
+*.msh
+*.pos
+*.pro
+
+# NIfTI outputs (keep only example .nii.gz inputs and data/eTPM.nii)
+*.nii
+!data/eTPM.nii
+!example/*.nii.gz
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Patient/subject data
+GBM/
+test/
+
+# Unet temporary data
+Unet/data/
+Unet/dataset/
+Unet/prediction/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+*~

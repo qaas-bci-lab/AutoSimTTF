@@ -1,0 +1,9 @@
+/Unet/UNet.pth filter=lfs diff=lfs merge=lfs -text
+/eTPM.nii filter=lfs diff=lfs merge=lfs -text
+/lib/getdp-3.5.0/bin/getdp filter=lfs diff=lfs merge=lfs -text
+/lib/getdp-3.5.0/bin/getdp.exe filter=lfs diff=lfs merge=lfs -text
+/lib/getdp-3.5.0/bin/getdpMac filter=lfs diff=lfs merge=lfs -text
+/lib/spm12/eTPM_ExtraCerebral_CSF.nii filter=lfs diff=lfs merge=lfs -text
+/lib/spm12/eTPM_Marked_WM_Surface.nii filter=lfs diff=lfs merge=lfs -text
+/lib/spm12/eTPM_Skull[[:space:]]Holes.nii filter=lfs diff=lfs merge=lfs -text
+/data/eTPM.nii filter=lfs diff=lfs merge=lfs -text

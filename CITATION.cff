@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use AutoSimTTF in your research, please cite the following paper."
+title: "AutoSimTTF: a fully automatic pipeline for personalized electric field simulation and treatment planning of tumor treating fields"
+authors:
+  - family-names: Xie
+    given-names: Xu
+  - family-names: Fan
+    given-names: Zhengbo
+journal: "Physics in Medicine & Biology"
+volume: 71
+pages: "045004"
+year: 2026
+doi: 10.1088/1361-6560/ae4288
+url: https://github.com/xiexu-auto/AutoSimTTF
+type: software
+license: MIT

@@ -1,0 +1,87 @@
+function [xopt,sopt] = optimize(p,A,Fnode)
+% sopt = optimize(p,A)
+%
+% Gateway function for the tDCS targeting technique. Refer to the following
+% paper for details: J.P. Dmochowski, A. Datta, M. Bikson, Y. Su, L.C. Parra
+% Optimized multi-electrode stimulation increases focality and intensity at target
+% J. Neural Eng., 8 (2011), p. 046011
+%
+% This implement accepts any number of targeting ROIs.
+%
+% optimize_prepare.m should be called before calling this function.
+%
+% Jacek P. Dmochowski, 2011
+% Yu (Andy) Huang, October 2014
+% Yu (Andy) Huang, January 2017
+
+% A = p.A;
+% node_distances = p.node_distances;
+% sorted_nodes = p.sorted_nodes;
+target_nodes = p.target_nodes; % Target coordinates对应的序列集
+targetCoord = p.targetCoord; % Target coordinate set
+% res_nodes = p.res_nodes; % 抑制Target coordinates对应的序列集
+% res_Coord = p.res_Coord; % 抑制Target coordinate set
+
+Nlocs = p.Nlocs; % Number of nodes
+numOfTargets = p.numOfTargets; % Number of target ROIs
+% numOfres = size(res_Coord,1); % 抑制靶区的个数
+
+optType = p.optType;
+I_max = p.I_max; % 电流最大值
+
+w = p.w;
+U = p.U; S = p.S; V = p.V;
+
+Ed = p.u; % Electric field direction
+desiredIntensity = p.desiredIntensity; % Desired intensity
+xd = zeros(3*Nlocs,1); % Desired electric field intensity (vector)
+for n = 1:numOfTargets
+    xd(target_nodes{n}) = desiredIntensity*Ed(n,1);
+    xd(target_nodes{n}+Nlocs) = desiredIntensity*Ed(n,2);
+    xd(target_nodes{n}+2*Nlocs) = desiredIntensity*Ed(n,3);
+end
+
+% CORE ALGORITHM
+fprintf('============================\nPerforming optimization...\n============================\n')
+[xopt,sopt,status] = optimize_currents(A,xd,I_max,w,target_nodes,targetCoord,optType,U,S,V,Fnode,0);
+if strcmp(status,'Failed')
+    warning('Warn:convert',...
+        'Optimization FAILED!!\n Program will continue but results may be INACCURATE!\n');
+    % else
+    %     fprintf('\n\nOptimization COMPLETED successfully!\n\n')
+end
+
+% % OUTPUT RESULTS
+% xoptmag = sqrt(xopt(1:Nlocs).^2+xopt(Nlocs+1:2*Nlocs).^2+xopt(2*Nlocs+1:3*Nlocs).^2);
+% 
+% directivity = zeros(Nlocs,numOfTargets);
+% crad = zeros(numOfTargets,1);
+% for n = 1:numOfTargets
+%     directivity(:,n) = cumsum( xoptmag(sorted_nodes(:,n)) ) / sum(xoptmag);
+%     tmp = find(directivity(:,n)>0.5);
+%     if ~isempty(tmp)
+%         crad(n) = node_distances(tmp(1),n);
+%     else
+%         crad(n) = inf;
+%     end
+% end
+
+% r.sopt = sopt;
+% r.xopt = xopt;
+% r.xoptmag = xoptmag;
+
+% % r.directivity = directivity;
+% r.crad = crad;
+% 
+% % r.targetintraw = xoptmag(sorted_nodes(1,:));
+% % r.targetint = dot(Ed,reshape([xopt(sorted_nodes(1,:)); xopt(sorted_nodes(1,:)+Nlocs);xopt(sorted_nodes(1,:)+2*Nlocs)],numOfTargets,3),2); % intensity in specified direction
+% 
+% % if exist('target_nodes','var')
+% targetintraw = zeros(numOfTargets,1);
+% targetint = zeros(numOfTargets,1);
+% for n=1:numOfTargets
+%     targetintraw(n) =  norm ( mean( [ xopt(target_nodes{n}) , xopt(target_nodes{n}+Nlocs) , xopt(target_nodes{n}+2*Nlocs) ], 1 ) );
+%     targetint(n) = dot( Ed(n,:) , mean ( [ xopt(target_nodes{n}) , xopt(target_nodes{n}+Nlocs) , xopt(target_nodes{n}+2*Nlocs) ], 1 ) );
+% end
+% r.targetintraw = targetintraw;
+% r.targetint = targetint;

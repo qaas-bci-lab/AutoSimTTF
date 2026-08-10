@@ -10,7 +10,13 @@
 # NIfTI outputs (keep only example .nii.gz inputs and data/eTPM.nii)
 *.nii
 !data/eTPM.nii
-!example/*.nii.gz
+
+# Keep only the four original example inputs; ignore all simulation outputs
+example/*
+!example/UPENN-00604_FLAIR.nii.gz
+!example/UPENN-00604_T1.nii.gz
+!example/UPENN-00604_T1GD.nii.gz
+!example/UPENN-00604_T2.nii.gz
 
 # Python
 __pycache__/
@@ -25,6 +31,8 @@ test/
 Unet/data/
 Unet/dataset/
 Unet/prediction/
+Unet/inference.txt
+Unet/__pycache__/
 
 # IDE
 .vscode/
@@ -34,3 +42,6 @@ Unet/prediction/
 .DS_Store
 Thumbs.db
 *~
+
+# Archives
+*.rar

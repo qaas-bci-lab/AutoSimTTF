@@ -16,6 +16,10 @@ if nargin<1 || isempty(subj)
     subj = 'example/MNI152_T1_1mm.nii';
 end
 
+% The bundled NIfTI reader works with uncompressed .nii files. Accept
+% compressed .nii.gz inputs by preparing an adjacent .nii working copy.
+subj = normalizeNiftiInput(subj);
+
 if  ~exist(subj,'file')
     error(['The subject MRI you provided ' subj ' does not exist.']);
 end
@@ -71,6 +75,26 @@ while indArg <= length(varargin)
             indArg = indArg+2;
         otherwise
             error('Supported options are: ''capType'', ''elecType'', ''elecSize'', ''elecOri'', ''T2'', ''meshOptions'', ''conductivities'', ''dielectrics'', ''frequency'', ''simulationTag'', ''resampling'', and ''zeroPadding''.');
+    end
+end
+
+% Predefined montages selected by simulationTag. These tags intentionally
+% override the recipe supplied by the caller.
+if exist('simTag','var') && (ischar(simTag) || isstring(simTag))
+    if strcmpi(char(simTag),'AP')
+        recipe = {'AF3', 100, 'AFz', 100, 'AF4', 100, ...
+            'F1', 100, 'Fz', 100, 'F2', 100, ...
+            'FC1', 100, 'FCz', 100, 'FC2', 100, ...
+            'P1', -100, 'Pz', -100, 'P2', -100, ...
+            'PO3', -100, 'POz', -100, 'PO4', -100, ...
+            'O1', -100, 'Oz', -100, 'O2', -100};
+    elseif strcmpi(char(simTag),'LR')
+        recipe = {'FC3', 100, 'C3', 100, 'CP3', 100, ...
+            'FC5', 100, 'C5', 100, 'CP5', 100, ...
+            'FT7', 100, 'T7', 100, 'TP7', 100, ...
+            'FC4', -100, 'C4', -100, 'CP4', -100, ...
+            'FC6', -100, 'C6', -100, 'CP6', -100, ...
+            'FT8', -100, 'T8', -100, 'TP8', -100};
     end
 end
     
@@ -362,7 +386,7 @@ end
 if ~exist('T2','var')
     T2 = [];
 else
-    if ~exist(T2,'file'), error(['The T2 MRI you provided ' T2 ' does not exist.']); end
+    T2 = normalizeNiftiInput(T2);
     
     t2Data = load_untouch_nii(T2);
     if t2Data.hdr.hist.qoffset_x == 0 && t2Data.hdr.hist.srow_x(4)==0
@@ -769,8 +793,8 @@ end
 % Extract base filename (patient ID)
 underscoreIndex = strfind(subj, '_');
 subjFileName = subj(1:underscoreIndex-1);
-t1gd = [subjFileName '_T1GD.nii'];
-flair = [subjFileName '_FLAIR.nii'];
+t1gd = normalizeNiftiInput([subjFileName '_T1GD']);
+flair = normalizeNiftiInput([subjFileName '_FLAIR']);
 [t1gdRS,~] = convertToRAS(t1gd);
 [flairRS,~] = convertToRAS(flair);
 if paddingAmt>0
@@ -810,7 +834,11 @@ if ~exist([dirname filesep baseFilename  '_segm.nii'],'file')
     disp('======================================================')
     disp('      STEP 3 (out of 7): SEGMENT TUMOR...       ')
     disp('======================================================')
-    preMasks = [dirname filesep baseFilenameRasRSPD '_T1orT2_masks.nii'];
+    if isempty(T2)
+        preMasks = [dirname filesep baseFilenameRasRSPD '_T1orT2_masks.nii'];
+    else
+        preMasks = [dirname filesep baseFilenameRasRSPD '_T1andT2_masks.nii'];
+    end
     processAndSegment(subjRasRSPD,T2,t1gdRSPD,flairRSPD,preMasks);
  else
     disp('======================================================')

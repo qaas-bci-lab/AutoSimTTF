@@ -16,6 +16,8 @@ if nargin<1 || isempty(subj)
     error(['Please Check Inputs']);
 end
 
+subj = normalizeNiftiInput(subj);
+
 % check simulation tag
 if nargin<2 || isempty(simTag)
     error(['Please provide a valid simulation tag for Subject ' subj ', so that TTF_target() can locate the corresponding lead field.']);

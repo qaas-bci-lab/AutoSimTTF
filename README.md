@@ -14,19 +14,29 @@
 
 ```matlab
 % 1. TTF simulation (finite element modeling + E-field computation)
-ttfsim('example/UPENN-00604_T1.nii', {'T8', 80, 'FTT7h', 0}, ...
-    'capType', '1020', 'T2', 'example/UPENN-00604_T2.nii', ...
+ttfsim('example/UPENN-00604_T1.nii.gz', ...
+    {'FC5', 300, 'C5', 300, 'CP5', 300, ...
+     'FC6', -300, 'C6', -300, 'CP6', -300}, ...
+    'T2', 'example/UPENN-00604_T2.nii.gz', ...
     'simulationTag', 'sim001');
 
-% 2. Generate lead field for targeting optimization
-ttfsim('example/UPENN-00604_T1.nii', 'leadfield', ...
-    'T2', 'example/UPENN-00604_T2.nii', 'simulationTag', 'lf001');
+% 2. AP montage: the AP electrode currents are selected automatically
+ttfsim('example/UPENN-00604_T1.nii.gz', [], ...
+    'T2', 'example/UPENN-00604_T2.nii.gz', 'simulationTag', 'AP');
 
-% 3. Optimize electrode montage for a target location
-ttf_target('example/UPENN-00604_T1.nii', 'lf001', [-30, -20, 50]);
+% 3. LR montage: the LR electrode currents are selected automatically
+ttfsim('example/UPENN-00604_T1.nii.gz', [], ...
+    'T2', 'example/UPENN-00604_T2.nii.gz', 'simulationTag', 'LR');
 
-% 4. Review results
-reviewRes('example/UPENN-00604_T1.nii', 'sim001');
+% 4. Generate lead field for targeting optimization
+ttfsim('example/UPENN-00604_T1.nii.gz', 'leadfield', ...
+    'T2', 'example/UPENN-00604_T2.nii.gz', 'simulationTag', 'lf001');
+
+% 5. Optimize electrode montage for a target location
+ttf_target('example/UPENN-00604_T1.nii.gz', 'lf001', [-30, -20, 50]);
+
+% 6. Review results
+reviewRes('example/UPENN-00604_T1.nii.gz', 'sim001');
 ```
 
 ---

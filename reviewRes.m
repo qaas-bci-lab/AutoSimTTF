@@ -75,6 +75,8 @@ if nargin<1 || isempty(subj)
     subj = 'example/MNI152_T1_1mm.nii';
 end
 
+subj = normalizeNiftiInput(subj);
+
 % check simulation tag
 if nargin<2 || isempty(simTag)
     error(['Please provide a valid simulation tag for Subject ' subj]);

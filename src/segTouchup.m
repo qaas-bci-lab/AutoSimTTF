@@ -1,5 +1,5 @@
-function segTouchup(P,T2,isSmooth,conn)
-% segTouchup(P,T2,isSmooth,conn)
+function segTouchup(P,T2,isSmooth,conn,outputStem)
+% segTouchup(P,T2,isSmooth,conn,outputStem)
 %
 % This function combines mysegment() and autoPatching() in ROAST version
 % 2.1 and earlier. It performs automated clean up on the output of SPM12 
@@ -18,7 +18,7 @@ if nargin < 3 || isempty(isSmooth)
     isSmooth = 1; % smooth the tissue by default
 end
 
-if nargin < 4
+if nargin < 4 || isempty(conn)
     conn = 18;
 end
 
@@ -26,6 +26,11 @@ disp('loading data...')
 % cd(dirname)
 [dirname,baseFilename] = fileparts(P);
 if isempty(dirname), dirname = pwd; end
+
+if nargin >= 5 && ~isempty(outputStem)
+    [dirname,baseFilename] = fileparts(outputStem);
+    if isempty(dirname), dirname = pwd; end
+end
 
 if isempty(T2)
     baseFilename = [baseFilename '_T1orT2'];

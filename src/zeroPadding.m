@@ -8,6 +8,10 @@ function mriPD = zeroPadding(mri,padNum)
 % yhuang16@citymail.cuny.edu
 % April 2018
 
+if nargin < 2 || isempty(padNum)
+    padNum = 10;
+end
+
 [dirname,baseFilename,ext] = fileparts(mri);
 if ~isempty(strfind(mri,'_padded'))
     warning([mri ' has already been zero-padded. Nothing will happen here. If you meant to add empty slices on the MRI, please provide MRI name without the _padded suffix.']);

@@ -1,5 +1,5 @@
-function [vol_all,ef_mag,ef_all] = postGetDP(P1,P2,node,hdrInfo,uniTag,indSolved,indInCore)
-% [vol_all,ef_mag,ef_all] = postGetDP(P1,P2,node,hdrInfo,uniTag,indSolved,indInCore)
+function [vol_all,ef_mag,ef_all] = postGetDP(P1,P2,node,hdrInfo,uniTag,indSolved,indInCore,outputStem)
+% [vol_all,ef_mag,ef_all] = postGetDP(P1,P2,node,hdrInfo,uniTag,indSolved,indInCore,outputStem)
 %
 % Post processing after solving the model / generating the lead field.
 % Save the result in Matlab format in the MRI voxel space. For the lead
@@ -21,7 +21,11 @@ if ~isempty(P2) % for ttfsim()
     % interpolation into regular grid in the voxel space
     for i=1:3, node(:,i) = node(:,i)/hdrInfo.pixdim(i); end
 
-    [~,baseFilenameRasRSPD] = fileparts(P2);
+    if nargin < 8 || isempty(outputStem)
+        [~,baseFilenameRasRSPD] = fileparts(P2);
+    else
+        [~,baseFilenameRasRSPD] = fileparts(outputStem);
+    end
     
     [xi,yi,zi] = ndgrid(1:hdrInfo.dim(1),1:hdrInfo.dim(2),1:hdrInfo.dim(3));
     

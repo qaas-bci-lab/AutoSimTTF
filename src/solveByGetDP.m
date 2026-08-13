@@ -11,6 +11,20 @@ load([dirname filesep baseFilename '_' uniTag '_usedElecArea.mat'],'area_elecNee
 
 numOfTissue = 9; % hard coded across ROAST.
 numOfElec = length(area_elecNeeded);
+currentTol = 1e-12;
+
+% A signed current pattern is a Neumann boundary condition.  In that
+% case the prescribed currents must balance; otherwise no steady-state
+% solution exists.  The old code silently ignored negative currents.
+activeCurrent = current(indUse);
+if any(activeCurrent < -currentTol) && abs(sum(activeCurrent)) > 1e-6
+    error('Signed electrode currents must sum to zero. Current sum: %g mA.', sum(activeCurrent));
+end
+hasZeroReference = any(abs(current(indUse)) <= currentTol);
+
+% The all-current-controlled case has a free additive voltage constant.
+% prepareForGetDP adds one point region for this gauge constraint.
+gaugeRegion = numOfTissue + 3*numOfElec + 1;
 
 fid = fopen([dirname filesep baseFilename '_' uniTag '.pro'],'w');
 
@@ -40,6 +54,7 @@ for i=1:length(indUse)
     gelStr = [gelStr 'gel' num2str(i) ', '];
     elecStr = [elecStr 'elec' num2str(i) ', '];
 end
+fprintf(fid,'%s\n',['gauge = Region[' num2str(gaugeRegion) '];']);
 
 fprintf(fid,'%s\n',['DomainC = Region[{white, gray, csf, bone, skin, air, NT, ED, ET,' gelStr elecStr(1:end-2) '}];']);
 fprintf(fid,'%s\n\n',['AllDomain = Region[{white, gray, csf, bone, skin, air, NT, ED, ET,' gelStr elecStr usedElecStr(1:end-2) '}];']);
@@ -77,7 +92,7 @@ for i=1:length(indUse)
 end
 
 for i=1:length(indUse)
-    if current(indUse(i)) >0
+    if abs(current(indUse(i))) > currentTol
         fprintf(fid,'%s\n',['du_dn' num2str(i) '[] = ' num2str(1000*current(indUse(i))/area_elecNeeded(indUse(i))) ';']);
     end
     
@@ -90,9 +105,14 @@ fprintf(fid,'%s\n\n','Constraint {');
 fprintf(fid,'%s\n','{ Name Dirichlet_Ele; Type Assign;');
 fprintf(fid,'%s\n','  Case {');
 for i=1:length(indUse)
-    if current(indUse(i)) ==0
+    if abs(current(indUse(i))) <= currentTol
         fprintf(fid,'%s\n',['    { Region usedElec' num2str(i) '; Value 0; }']);
     end    
+end
+if ~hasZeroReference
+    % Fix only the otherwise-undetermined additive voltage constant. This
+    % is a point constraint, not an extra electrode or current path.
+    fprintf(fid,'%s\n','    { Region gauge; Value 0; }');
 end
 fprintf(fid,'%s\n','  }');
 fprintf(fid,'%s\n\n','}');
@@ -153,7 +173,7 @@ fprintf(fid,'%s\n','      Galerkin { DtDof[ epsilon[] * Dof{d v} , {d v} ]; In D
 fprintf(fid,'%s\n\n','                 Jacobian Vol; Integration GradGrad; }');
 
 for i=1:length(indUse)
-    if current(indUse(i)) >0
+    if abs(current(indUse(i))) > currentTol
         fprintf(fid,'%s\n',['      Galerkin{ [ -du_dn' num2str(i) '[], {v} ]; In usedElec' num2str(i) ';']);
         fprintf(fid,'%s\n','                 Jacobian Sur; Integration GradGrad;}');
     end   

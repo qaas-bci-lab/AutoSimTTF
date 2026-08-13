@@ -119,7 +119,14 @@ if __name__ == '__main__':
     test_save_path = './Unet/prediction/'
     save_mode_path = './Unet/UNet.pth'
     net = UNet(in_channels=4, num_classes=4).cuda()
-    net.load_state_dict(torch.load(save_mode_path)['model'])
+    # UNet.pth is a trusted project checkpoint. PyTorch 2.6 changed the
+    # default of torch.load(weights_only) to True, which rejects this
+    # checkpoint because it contains the complete training-state object.
+    try:
+        checkpoint = torch.load(save_mode_path, map_location='cuda', weights_only=False)
+    except TypeError:  # compatibility with older PyTorch versions
+        checkpoint = torch.load(save_mode_path, map_location='cuda')
+    net.load_state_dict(checkpoint['model'])
     # print("init weight from {}".format(save_mode_path))
     net.eval()
     with open(data_path + '/../inference.txt', 'r') as f:

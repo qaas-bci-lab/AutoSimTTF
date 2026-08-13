@@ -175,7 +175,6 @@ elseif strcmp(method,'optimize_electrodes')
         C = [Cx;Cy;Cz];
         f = [mean(d(tar_nodes{n}));mean(d(tar_nodes{n}+Nlocs));mean(d(tar_nodes{n}+2*Nlocs))];
         Cf(:,n) = C'*f;
-        save("Cf.mat","Cf");
     end
     [s_opt,status] = optimize_electrodes(A,d,Cf,S_max,tar_nodes,targetCoord,Fnode,verbose);
     x_opt = A*s_opt;

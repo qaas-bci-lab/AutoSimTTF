@@ -90,14 +90,41 @@ if ~exist([dirname filesep baseFilename '_' uniTag '_usedElecArea.mat'],'file')
     save([dirname filesep baseFilename '_' uniTag '_usedElecArea.mat'],'area_elecNeeded');
 end
 
-if ~exist([dirname filesep baseFilename '_' uniTag '_ready.msh'],'file')
+numOfPart = length(unique(elem(:,5)));
+% Reserve a point region for the voltage gauge used when all active
+% electrodes are prescribed by signed currents.  The point fixes only
+% the arbitrary potential offset of a pure-Neumann problem.
+gaugeRegion = numOfPart + numOfElec + 1;
+meshCenter = mean(node(:,1:3),1);
+[~,gaugeNode] = min(sum((node(:,1:3)-meshCenter).^2,2));
+
+% Rebuild an old ready mesh if it predates the point-gauge element.
+readyMsh = [dirname filesep baseFilename '_' uniTag '_ready.msh'];
+needsPrepare = ~exist(readyMsh,'file');
+if ~needsPrepare
+    fid_check = fopen(readyMsh,'r');
+    hasGauge = false;
+    if fid_check >= 0
+        gaugeText = [num2str(gaugeRegion) ' ' num2str(gaugeRegion) ' ' num2str(gaugeNode)];
+        while ~feof(fid_check)
+            line = fgetl(fid_check);
+            if ischar(line) && ~isempty(strfind(line,gaugeText))
+                hasGauge = true;
+                break;
+            end
+        end
+        fclose(fid_check);
+    end
+    needsPrepare = ~hasGauge;
+end
+
+if needsPrepare
     
     disp('setting up boundary conditions...');
     
     fid_in = fopen([dirname filesep baseFilename '_' uniTag '.msh']);
     fid_out = fopen([dirname filesep baseFilename '_' uniTag '_ready.msh'],'w');
     
-    numOfPart = length(unique(elem(:,5)));
     while ~feof(fid_in)
         s = fgetl(fid_in);
         
@@ -105,7 +132,8 @@ if ~exist([dirname filesep baseFilename '_' uniTag '_ready.msh'],'file')
             fprintf(fid_out,'%s\n',s);
             s = fgetl(fid_in);
             numOfElem = str2num(s);
-            fprintf(fid_out,'%s\n',num2str(numOfElem+size(cell2mat(element_elecNeeded),1)));
+            numAddedElec = size(cell2mat(element_elecNeeded),1);
+            fprintf(fid_out,'%s\n',num2str(numOfElem+numAddedElec+1));
         elseif strcmp(s,'$EndElements')
             ii = 0;
             for j=1:numOfElec
@@ -116,6 +144,10 @@ if ~exist([dirname filesep baseFilename '_' uniTag '_ready.msh'],'file')
                 end
                 ii = ii + i;
             end
+
+            % MSH element type 15 is a point element.  It reuses an
+            % existing mesh node, so it does not alter the physical model.
+            fprintf(fid_out,'%s\n',[num2str(numOfElem+numAddedElec+1) ' 15 2 ' num2str(gaugeRegion) ' ' num2str(gaugeRegion) ' ' num2str(gaugeNode)]);
             
             fprintf(fid_out,'%s\n',s);
         else

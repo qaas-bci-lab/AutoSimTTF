@@ -58,6 +58,32 @@ else
     subjRasRSPD = subjRasRS;
 end
 
+% AutoSimTTF may use a padded MRI internally while keeping the generated
+% segmentation/header/mask files under the original stem. Prefer that
+% public output stem, but retain compatibility with older padded runs.
+[dirname2,baseFilename2,~] = fileparts(subjRasRS);
+outputStemRasRSPD = [dirname2 filesep baseFilename2];
+if isempty(optSim.T2)
+    modalitySuffix = '_T1orT2';
+else
+    modalitySuffix = '_T1andT2';
+end
+if optSim.zeroPad>0
+    [~,paddedBaseFilename] = fileparts(subjRasRSPD);
+    paddedHeaderFile = [dirname filesep paddedBaseFilename modalitySuffix '_header.mat'];
+    outputHeaderFile = [outputStemRasRSPD modalitySuffix '_header.mat'];
+    if exist(outputHeaderFile,'file')
+        headerBaseFilename = baseFilename2;
+    elseif exist(paddedHeaderFile,'file')
+        outputStemRasRSPD = [dirname filesep paddedBaseFilename];
+        headerBaseFilename = paddedBaseFilename;
+    else
+        error(['Header file not found. Checked ' outputHeaderFile ' and ' paddedHeaderFile '. Check if you run through electrode placement in AutoSimTTF.']);
+    end
+else
+    headerBaseFilename = baseFilename2;
+end
+
 meshFile = [dirname filesep baseFilename '_' simTag '.mat'];
 if ~exist(meshFile,'file')
     error(['Mesh file ' meshFile ' not found. Check if you run through meshing in AutoSimTTF.']);
@@ -65,8 +91,8 @@ else
     load(meshFile,'node','elem','face');
 end
 
-[~,baseFilenameRasRSPD] = fileparts(subjRasRSPD);
-hdrFile = [dirname filesep baseFilenameRasRSPD '_header.mat'];
+baseFilenameRasRSPD = headerBaseFilename;
+hdrFile = [dirname filesep baseFilenameRasRSPD modalitySuffix '_header.mat'];
 if ~exist(hdrFile,'file')
     error(['Header file ' hdrFile ' not found. Check if you run through electrode placement in AutoSimTTF.']);
 else
@@ -212,7 +238,9 @@ else
     warning('You''re changing the advanced options of AutoSimTTF-TARGET. Unless you know what you''re doing, please keep the ''targetRadius'' value default.');
 end
 
-if ~exist('tarTag','var'), tarTag = []; end
+% OPT is the built-in targeting operation implemented below.  Use it as the
+% default tag so a basic ttf_target(...) call follows the normal workflow.
+if ~exist('tarTag','var') || isempty(tarTag), tarTag = 'OPT'; end
 
 % to locate related files (e.g. MRI header, *_seg8 mapping, tissue masks)
 if isempty(optSim.T2)
@@ -563,6 +591,6 @@ caxis([min(mon) max(mon)]);
 drawnow
 
 [~,indInUsrInput] = elecPreproc(subj,elecName,elecPara);
-visualizeRes(subj,subjRasRSPD,optSim.T2,node,elem,face,mon(indInUsrInput),hdrInfo,uniqueTag,0,r.xopt,r.ef_mag,r.ef_all,r.targetCoord);
+visualizeRes(subj,subjRasRSPD,optSim.T2,node,elem,face,mon(indInUsrInput),hdrInfo,uniqueTag,0,r.xopt,r.ef_mag,r.ef_all,r.targetCoord,outputStemRasRSPD);
 
 disp('==================ALL DONE AutoSimTTF-TARGET=======================');

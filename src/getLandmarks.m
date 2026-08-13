@@ -1,5 +1,5 @@
-function landmarks = getLandmarks(P,T2)
-% landmarks = getLandmarks(P,T2)
+function landmarks = getLandmarks(P,T2,outputStem)
+% landmarks = getLandmarks(P,T2,outputStem)
 %
 % Mapping landmarks in the TPM (hard-coded) to the individual head, by
 % using the mapping computed during the segmentation process in SPM.
@@ -11,7 +11,12 @@ function landmarks = getLandmarks(P,T2)
 % yhuang16@citymail.cuny.edu
 % April 2018
 
-[dirname,baseFilename] = fileparts(P);
+if nargin < 3 || isempty(outputStem)
+    [dirname,baseFilename] = fileparts(P);
+else
+    [dirname,baseFilename] = fileparts(outputStem);
+end
+if isempty(dirname), dirname = pwd; end
 if isempty(T2)
     baseFilename = [baseFilename '_T1orT2'];
 else

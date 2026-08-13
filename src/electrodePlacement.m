@@ -1,5 +1,5 @@
-function hdrInfo = electrodePlacement(P1,P2,T2,elecNeeded,options,uniTag)
-% hdrInfo = electrodePlacement(P1,P2,T2,elecNeeded,options,uniTag)
+function hdrInfo = electrodePlacement(P1,P2,T2,elecNeeded,options,uniTag,outputStem)
+% hdrInfo = electrodePlacement(P1,P2,T2,elecNeeded,options,uniTag,outputStem)
 %
 % Place electrodes on the scalp surface. options.elecPara contains all the options
 % info for each electrode.
@@ -10,7 +10,12 @@ function hdrInfo = electrodePlacement(P1,P2,T2,elecNeeded,options,uniTag)
 
 [dirname,baseFilename] = fileparts(P1);
 if isempty(dirname), dirname = pwd; end
-[~,baseFilenameRasRSPD] = fileparts(P2);
+if nargin < 7, outputStem = []; end
+if nargin < 7 || isempty(outputStem)
+    [~,baseFilenameRasRSPD] = fileparts(P2);
+else
+    [~,baseFilenameRasRSPD] = fileparts(outputStem);
+end
 if isempty(T2)
     baseFilenameRasRSPD = [baseFilenameRasRSPD '_T1orT2'];
 else
@@ -42,7 +47,7 @@ scalp = template.img==5;
 
 if ~isempty(indP) || ~isempty(indN)
 %     landmarks = changeOrientationPointCloud(landmarks_original,perm,isFlipInner,size(scalp));
-    landmarks = getLandmarks(P2,T2);
+    landmarks = getLandmarks(P2,T2,outputStem);
 end
 
 if ~isempty(indC)
@@ -204,7 +209,6 @@ template.img = uint8(volume_gel_C.*volume_gel);
 save_untouch_nii(template,[dirname filesep baseFilename '_' uniTag '_mask_gel.nii']);
 
 % save([dirname filesep baseFilename '_' uniTag '_labelVol.mat'],'volume_elecLabel','volume_gelLabel');
-[~,baseFilenameRasRSPD] = fileparts(P2);
 if ~exist([dirname filesep baseFilenameRasRSPD '_header.mat'],'file')
     save([dirname filesep baseFilenameRasRSPD '_header.mat'],'hdrInfo');
 end

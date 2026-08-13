@@ -1,5 +1,5 @@
-function start_seg(P,T2,Template,norm)
-% start_seg(P,T2,Template,norm)
+function start_seg(P,T2,Template,norm,outputStem)
+% start_seg(P,T2,Template,norm,outputStem)
 %
 % Gateway script to start running the SPM12 segment function.
 %
@@ -37,6 +37,14 @@ if nargin <4 || isempty(norm) %norm not specified... do not normalize data
     norm = false;
 end
 
+if nargin <5 || isempty(outputStem)
+    outputDir = [];
+    outputBaseFilename = [];
+else
+    [outputDir,outputBaseFilename] = fileparts(outputStem);
+    if isempty(outputDir), outputDir = pwd; end
+end
+
 if norm
     n = [1 1];
     w = [1 0];
@@ -58,6 +66,11 @@ for i=1:size(P,1)
 %     [pth,nam,ext] = spm_fileparts(ref);
     [dirname,baseFilename,ext] = fileparts(ref);
     if isempty(dirname), dirname = pwd; end
+
+    if isempty(outputBaseFilename)
+        outputDir = dirname;
+        outputBaseFilename = baseFilename;
+    end
     
     if strcmp(ext,'.hdr'), ref = [dirname filesep baseFilename '.img']; end
     
@@ -131,20 +144,20 @@ for i=1:size(P,1)
     if isempty(T2)
         for t=1:6
             movefile([dirname filesep 'c' num2str(t) baseFilename '.nii'],...
-                [dirname filesep 'c' num2str(t) baseFilename '_T1orT2.nii']);
+                [outputDir filesep 'c' num2str(t) outputBaseFilename '_T1orT2.nii']);
         end
         movefile([dirname filesep baseFilename '_rmask.mat'],...
-            [dirname filesep baseFilename '_T1orT2_rmask.mat']);
+            [outputDir filesep outputBaseFilename '_T1orT2_rmask.mat']);
         movefile([dirname filesep baseFilename '_seg8.mat'],...
-            [dirname filesep baseFilename '_T1orT2_seg8.mat']);
+            [outputDir filesep outputBaseFilename '_T1orT2_seg8.mat']);
     else
         for t=1:6
             movefile([dirname filesep 'c' num2str(t) baseFilename '.nii'],...
-                [dirname filesep 'c' num2str(t) baseFilename '_T1andT2.nii']);
+                [outputDir filesep 'c' num2str(t) outputBaseFilename '_T1andT2.nii']);
         end
         movefile([dirname filesep baseFilename '_rmask.mat'],...
-            [dirname filesep baseFilename '_T1andT2_rmask.mat']);
+            [outputDir filesep outputBaseFilename '_T1andT2_rmask.mat']);
         movefile([dirname filesep baseFilename '_seg8.mat'],...
-            [dirname filesep baseFilename '_T1andT2_seg8.mat']);
+            [outputDir filesep outputBaseFilename '_T1andT2_seg8.mat']);
     end
 end % for each image

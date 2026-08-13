@@ -39,6 +39,11 @@ ttf_target('example/UPENN-00604_T1.nii.gz', 'lf001', [-30, -20, 50]);
 reviewRes('example/UPENN-00604_T1.nii.gz', 'sim001');
 ```
 
+For a signed montage, positive and negative values represent source and
+return currents and must sum to zero. The solver preserves both signs and
+uses an internal point gauge only to fix the arbitrary voltage offset; it
+does not add another electrode or current path.
+
 ---
 
 ## Input Data
@@ -79,8 +84,13 @@ ttfsim(subj, recipe, ...)
 | `elecSize`        | Electrode dimensions (mm)                    | depends on type|
 | `T2`              | T2 MRI for improved segmentation             | `[]`           |
 | `simulationTag`   | Unique label for this run                    | auto-generated |
+| `zeroPadding`     | Empty voxel padding in six directions       | `10`           |
 | `conductivities`  | Tissue conductivity struct (S/m)             | literature vals|
 | `frequency`       | Stimulation frequency (Hz)                   | `200000`       |
+
+When `zeroPadding` is omitted, AutoSimTTF uses 10 voxels internally. The
+generated segmentation, mask, mesh, and simulation result filenames keep the
+original subject stem and do not include `_padded10`.
 
 ### `ttf_target` — Electrode Montage Optimization
 

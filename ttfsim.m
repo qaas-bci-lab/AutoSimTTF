@@ -106,9 +106,6 @@ if any(~strcmpi(recipe,'leadfield'))
     end
     elecName = (recipe(1:2:end-1))';
     injectCurrent = (cell2mat(recipe(2:2:end)))';
-    % if abs(sum(injectCurrent))>eps % eps is floating-point relative accuracy, a very small value
-    %     error('Electric currents going in and out of the head not balanced. Please make sure they sum to 0.');
-    % end
 
     % set up defaults and check on option conflicts
     if ~exist('capType','var')
@@ -457,8 +454,9 @@ else
     end
 end
 
-if ~exist('paddingAmt','var')
-    paddingAmt = 0;
+useDefaultPadding = ~exist('paddingAmt','var');
+if useDefaultPadding
+    paddingAmt = 10;
 else
     if paddingAmt<=0 || mod(paddingAmt,1)~=0
         error('Unrecognized option value. Please enter positive integer value for option ''zeroPadding''. A recommended value is 10.');
@@ -695,6 +693,14 @@ if any(~strcmpi(recipe,'leadfield'))
 
     elecName = elecName(indInUsrInput);
     injectCurrent = injectCurrent(indInUsrInput);
+
+    % With signed current control, positive and negative electrodes are
+    % source/sink boundaries and their net current must be zero.  Patterns
+    % containing only nonnegative currents keep the legacy behavior where
+    % zero-current electrodes provide the voltage reference/return path.
+    if any(injectCurrent < -1e-12) && abs(sum(injectCurrent)) > 1e-6
+        error('Signed electrode currents must sum to zero. Current sum: %g mA.', sum(injectCurrent));
+    end
     
     configTxt = [];
     for i=1:length(elecName)
@@ -788,7 +794,15 @@ if all(strcmpi(recipe,'leadfield'))
 end
 
 %%    
-[~,baseFilenameRasRSPD] = fileparts(subjRasRSPD);
+[processingDir,processingBaseFilename] = fileparts(subjRasRSPD);
+if isempty(processingDir), processingDir = pwd; end
+if useDefaultPadding
+    [~,baseFilenameRasRSPD] = fileparts(subjRasRS);
+    outputStemRasRSPD = [processingDir filesep baseFilenameRasRSPD];
+else
+    baseFilenameRasRSPD = processingBaseFilename;
+    outputStemRasRSPD = [];
+end
 
 % Extract base filename (patient ID)
 underscoreIndex = strfind(subj, '_');
@@ -811,7 +825,7 @@ if (isempty(T2) && ~exist([dirname filesep 'c1' baseFilenameRasRSPD '_T1orT2.nii
     disp('======================================================')
     disp('       STEP 1 (out of 7): SEGMENT THE MRI...          ')
     disp('======================================================')
-    start_seg(subjRasRSPD,T2);
+    start_seg(subjRasRSPD,T2,[],[],outputStemRasRSPD);
 else
     disp('======================================================')
     disp('          MRI ALREADY SEGMENTED, SKIP STEP 1          ')
@@ -823,7 +837,7 @@ if (isempty(T2) && ~exist([dirname filesep baseFilenameRasRSPD '_T1orT2_masks.ni
     disp('======================================================')
     disp('     STEP 2 (out of 7): SEGMENTATION TOUCHUP...       ')
     disp('======================================================')
-    segTouchup(subjRasRSPD,T2);
+    segTouchup(subjRasRSPD,T2,[],[],outputStemRasRSPD);
 else
     disp('======================================================')
     disp('    SEGMENTATION TOUCHUP ALREADY DONE, SKIP STEP 2    ')
@@ -850,7 +864,7 @@ if ~exist([dirname filesep baseFilename '_' uniqueTag '_mask_elec.nii'],'file')
     disp('======================================================')
     disp('      STEP 4 (out of 7): ELECTRODE PLACEMENT...       ')
     disp('======================================================')
-    hdrInfo = electrodePlacement(subj,subjRasRSPD,T2,elecName,options,uniqueTag);
+    hdrInfo = electrodePlacement(subj,subjRasRSPD,T2,elecName,options,uniqueTag,outputStemRasRSPD);
 else
     disp('======================================================')
     disp('         ELECTRODE ALREADY PLACED, SKIP STEP 4       ')
@@ -875,7 +889,7 @@ if ~exist([dirname filesep baseFilename '_' uniqueTag '.mat'],'file')
     allMask.hdr.dime.glmax = 9;
     save_untouch_nii(allMask,[dirname filesep baseFilenameRasRSPD '_T1andT2_allmasks.nii']);
 
-    [node,elem,face] = meshByIso2mesh(subj,subjRasRSPD,T2,meshOpt,hdrInfo,uniqueTag);
+    [node,elem,face] = meshByIso2mesh(subj,subjRasRSPD,T2,meshOpt,hdrInfo,uniqueTag,outputStemRasRSPD);
 else
     disp('======================================================')
     disp('          MESH ALREADY GENERATED, SKIP STEP 5         ')
@@ -903,14 +917,14 @@ if any(~strcmpi(recipe,'leadfield'))
         disp('======================================================')
         disp('STEP 7 (final step): SAVING AND VISUALIZING RESULTS...')
         disp('======================================================')
-        [vol_all,ef_mag,ef_all] = postGetDP(subj,subjRasRSPD,node,hdrInfo,uniqueTag);       
-        visualizeRes(subj,subjRasRSPD,T2,node,elem,face,injectCurrent,hdrInfo,uniqueTag,0,vol_all,ef_mag,ef_all);
+        [vol_all,ef_mag,ef_all] = postGetDP(subj,subjRasRSPD,node,hdrInfo,uniqueTag,[],[],outputStemRasRSPD);
+        visualizeRes(subj,subjRasRSPD,T2,node,elem,face,injectCurrent,hdrInfo,uniqueTag,0,vol_all,ef_mag,ef_all,outputStemRasRSPD);
     else
         disp('======================================================')
         disp('  ALL STEPS DONE, LOADING RESULTS FOR VISUALIZATION   ')
         disp('======================================================')
         load([dirname filesep baseFilename '_' uniqueTag '_simResult.mat'],'vol_all','ef_mag','ef_all');
-        visualizeRes(subj,subjRasRSPD,T2,node,elem,face,injectCurrent,hdrInfo,uniqueTag,1,vol_all,ef_mag,ef_all);
+        visualizeRes(subj,subjRasRSPD,T2,node,elem,face,injectCurrent,hdrInfo,uniqueTag,1,vol_all,ef_mag,ef_all,outputStemRasRSPD);
     end
 
 else

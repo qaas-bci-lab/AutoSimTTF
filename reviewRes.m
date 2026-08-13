@@ -196,12 +196,23 @@ else
     subjRasRSPD = subjRasRS;
 end
 
-[~,baseFilenameRasRSPD] = fileparts(subjRasRSPD);
+[~,paddedBaseFilenameRasRSPD] = fileparts(subjRasRSPD);
+[~,resampledBaseFilenameRasRSPD] = fileparts(subjRasRS);
 if isempty(optSim.T2)
-    mappingFile = [dirname filesep baseFilenameRasRSPD '_T1orT2_seg8.mat'];
+    modalitySuffix = '_T1orT2';
 else
-    mappingFile = [dirname filesep baseFilenameRasRSPD '_T1andT2_seg8.mat'];
+    modalitySuffix = '_T1andT2';
 end
+
+% With the default zero padding, ttfsim uses the padded MRI internally but
+% keeps derived segmentation/header files under the unpadded public stem.
+% Prefer that naming scheme, while retaining compatibility with older runs.
+baseFilenameRasRSPD = paddedBaseFilenameRasRSPD;
+if optSim.zeroPad>0 && exist([dirname filesep resampledBaseFilenameRasRSPD modalitySuffix '_seg8.mat'],'file')
+    baseFilenameRasRSPD = resampledBaseFilenameRasRSPD;
+end
+
+mappingFile = [dirname filesep baseFilenameRasRSPD modalitySuffix '_seg8.mat'];
 if ~exist(mappingFile,'file')
     error(['Mapping file ' mappingFile ' from SPM not found. Please check if you run through SPM segmentation in AutoSimTTF.']);
 else
@@ -252,16 +263,12 @@ else
     
 end
 
-if isempty(optSim.T2)
-    masksFile = [dirname filesep baseFilenameRasRSPD '_T1orT2_masks.nii'];
-else
-    masksFile = [dirname filesep baseFilenameRasRSPD '_T1andT2_masks.nii'];
-end
+masksFile = [dirname filesep baseFilenameRasRSPD modalitySuffix '_masks.nii'];
 if ~exist(masksFile,'file')
     error(['Segmentation masks ' masksFile ' not found. Check if you run through MRI segmentation.']);
 else
     % masks = load_untouch_nii(masksFile);
-    masks = load_untouch_nii([dirname filesep baseFilenameRasRSPD '_T1andT2_allmasks.nii']);
+    masks = load_untouch_nii([dirname filesep baseFilenameRasRSPD modalitySuffix '_allmasks.nii']);
 end
 
 numOfTissue = 9; % hard coded across ROAST.  max(allMask(:));
@@ -321,36 +328,35 @@ else
     load(meshFile,'node','elem','face');
 end
 
-if ~strcmp(tissue,'brain')
-    indNode_showFace = face(find(face(:,4) == indSurfShow),1:3);
-    indNode_showElm = elem(find(elem(:,5) == indSurfShow),1:4);
-else 
-    indNode_showFace = face(find(face(:,4) == 2 | face(:,4) == 8 | face(:,4) == 9 | face(:,4) == 7),1:3);
-    indNode_showElm = elem(find(elem(:,5) == 2 | elem(:,5) == 8 | elem(:,5) == 9 |  elem(:,5) == 7),1:4);    
-end
-
-if ~strcmp(tissue,'tumor')
-    indNode_showFace = face(find(face(:,4) == indSurfShow),1:3);
-    indNode_showElm = elem(find(elem(:,5) == indSurfShow),1:4);
-else 
-    indNode_showFace = face(find(face(:,4) == 8 | face(:,4) == 9 | face(:,4) == 7),1:3);
-    indNode_showElm = elem(find(elem(:,5) == 8 | elem(:,5) == 9 |  elem(:,5) == 7),1:4);  
-    indNode_grayFace = face(find(face(:,4) == 2),1:3);
-    indNode_grayElm = elem(find(elem(:,5) == 2),1:4);
-end
+% Tissue labels: gray matter = 2, NCR = 7, ED = 8, ET = 9.
+% The field renderings below always use the same two views, independent of
+% the legacy tissue argument: ET with translucent gray matter, and gray
+% matter with the complete tumor.
+indNode_grayFace = face(face(:,4) == 2,1:3);
+indNode_grayElm = elem(elem(:,5) == 2,1:4);
+indNode_tumorFace = face(ismember(face(:,4),[7 8 9]),1:3);
+indNode_tumorElm = elem(ismember(elem(:,5),[7 8 9]),1:4);
+indNode_ETFace = face(face(:,4) == 9,1:3);
+indNode_ETElm = elem(elem(:,5) == 9,1:4);
 
 if ~fastRender
-    node(:,1:3) = sms(node(:,1:3),indNode_showFace);
-    % smooth the surface that's to be displayed (just for display, the output data is not smoothed)
-    % very slow if mesh is big
+    node(:,1:3) = sms(node(:,1:3),[indNode_grayFace; indNode_tumorFace]);
+    % Smooth only for display; the saved mesh and field data are unchanged.
 end
 
-hdrFile = [dirname filesep baseFilenameRasRSPD '_header.mat'];
+% Header files generated with T2 use the same modality suffix as the
+% segmentation and mapping files (e.g. *_ras_T1andT2_header.mat).
+hdrFile = [dirname filesep baseFilenameRasRSPD modalitySuffix '_header.mat'];
 if ~exist(hdrFile,'file')
-    error(['Header file ' hdrFile ' not found. Check if you run through electrode placement.']);
-else
-    load(hdrFile,'hdrInfo');
+    % Keep compatibility with older runs that used *_ras_header.mat.
+    legacyHdrFile = [dirname filesep baseFilenameRasRSPD '_header.mat'];
+    if exist(legacyHdrFile,'file')
+        hdrFile = legacyHdrFile;
+    else
+        error(['Header file ' hdrFile ' not found. Check if you run through electrode placement.']);
+    end
 end
+load(hdrFile,'hdrInfo');
 
 for i=1:3, node(:,i) = node(:,i)/hdrInfo.pixdim(i); end
 % convert pseudo-world coordinates back to voxel coordinates so that the
@@ -367,55 +373,7 @@ if isSim
     indNode_elecElm = elem(find(elem(:,5) > numOfTissue+numOfGel),1:4);
     
     inCurrentRange = [min(inCurrent) max(inCurrent)];
-    
-    volFile = [dirname filesep baseFilename '_' simTag '_v.pos'];
-    if ~exist(volFile,'file')
-        error(['Solution file ' volFile ' not found. Check if you run through solving.']);
-    else
-        fid = fopen(volFile);
-        fgetl(fid);
-        C = textscan(fid,'%d %f %f');
-        fclose(fid);
-    end
-    C{2} = sqrt(C{2}.^2+C{3}.^2);
-    C{2} = C{2} - min(C{2}); % re-reference the voltage
-    
-    % dataShow = [node(C{1},1:3) C{2}];
-    color = nan(size(node,1),1);
-    color(C{1}) = C{2};
-    dataShow = [node(:,1:3) color];
-    
-    figName = ['Voltage in Simulation: ' simTag];
-    figure('Name',[figName '. Move your mouse to rotate.'],'NumberTitle','off');
-    set(gcf,'color','w');
-    colormap(jet);
-    plotmesh(dataShow,indNode_showFace,indNode_showElm,'LineStyle','none');
-    dataShowRange = [min(dataShow(unique(indNode_showElm(:)),4)) max(dataShow(unique(indNode_showElm(:)),4))];
-    dataShowForElec = interp1(inCurrentRange,dataShowRange,inCurrent);
-    for i=1:length(inCurrent)
-        %     indNodeTemp = indNode_elecElm(find(label_elec==i),:);
-        %     dataShow(unique(indNodeTemp(:)),4) = dataShowForElec(i);
-        dataShow(unique(elem(find(elem(:,5) == numOfTissue+numOfGel+i),1:4)),4) = dataShowForElec(i);
-    end % to show injected current intensities properly
-    hold on;
-    plotmesh(dataShow,indNode_elecFace,indNode_elecElm,'LineStyle','none');
-    axis off; rotate3d on;
-    % set(hp1,'SpecularColorReflectance',0,'SpecularExponent',50);
-    caxis(dataShowRange);
-    lightangle(-90,45)
-    lightangle(90,45)
-    lightangle(-90,-45)
-    hc1 = colorbar; set(hc1,'FontSize',18,'YAxisLocation','right');
-    title(hc1,'Voltage (mV)','FontSize',18);
-    a1 = gca;
-    a2 = axes('Color','none','Position',get(a1,'Position'),'XLim',get(a1,'XLim'),'YLim',get(a1,'YLim'),'ZLim',get(a1,'ZLim'));
-    axis off;
-    hc2 = colorbar; set(hc2,'FontSize',18,'YAxisLocation','right','Location','westoutside');
-    title(hc2,'Injected current (mA)','FontSize',18);
-    caxis(inCurrentRange);
-    axes(a1);
-    drawnow
-    
+
     efFile = [dirname filesep baseFilename '_' simTag '_e.pos'];
     if ~exist(efFile,'file')
         error(['Solution file ' efFile ' not found. Check if you run through solving.']);
@@ -434,40 +392,19 @@ if isSim
     color(C{1}) = C_ef_mag;
     dataShow = [node(:,1:3) color];
     
-    figName = ['Electric field in Simulation: ' simTag];
-    figure('Name',[figName '. Move your mouse to rotate.'],'NumberTitle','off');
-    set(gcf,'color','w');
-    colormap(jet);
-    plotmesh(dataShow,indNode_showFace,indNode_showElm,'LineStyle','none','facealpha','0.7');
-    hold on;
-    plotmesh(node(:,1:3),indNode_grayFace,indNode_grayElm,'facecolor','k','facealpha','0.1','LineStyle','none');
-%     dataShowVal = dataShow(unique(indNode_showElm(:)),4);
-    dataShowRange = [min(dataShow(unique(indNode_showElm(:)),4)) prctile(dataShow(unique(indNode_showElm(:)),4),95)];
+    fieldNodes = unique([indNode_grayElm(:); indNode_tumorElm(:)]);
+    fieldValues = dataShow(fieldNodes,4);
+    fieldValues = fieldValues(~isnan(fieldValues));
+    dataShowRange = [min(fieldValues) prctile(fieldValues,95)];
+    if dataShowRange(1) == dataShowRange(2)
+        dataShowRange = dataShowRange + [-0.5 0.5];
+    end
     dataShowForElec = interp1(inCurrentRange,dataShowRange,inCurrent);
     for i=1:length(inCurrent)
         %     indNodeTemp = indNode_elecElm(find(label_elec==i),:);
         %     dataShow(unique(indNodeTemp(:)),4) = dataShowForElec(i);
         dataShow(unique(elem(find(elem(:,5) == numOfTissue+numOfGel+i),1:4)),4) = dataShowForElec(i);
     end % to show injected current intensities properly
-    hold on;
-    plotmesh(dataShow,indNode_elecFace,indNode_elecElm,'LineStyle','none');
-    axis off; rotate3d on;
-    % set(hp2,'SpecularColorReflectance',0,'SpecularExponent',50);
-    caxis(dataShowRange);
-    lightangle(-90,45)
-    lightangle(90,45)
-    lightangle(-90,-45)
-    hc1 = colorbar; set(hc1,'FontSize',18,'YAxisLocation','right');
-    title(hc1,'Electric field (V/m)','FontSize',18);
-    a1 = gca;
-    a2 = axes('Color','none','Position',get(a1,'Position'),'XLim',get(a1,'XLim'),'YLim',get(a1,'YLim'),'ZLim',get(a1,'ZLim'));
-    axis off;
-    hc2 = colorbar; set(hc2,'FontSize',18,'YAxisLocation','right','Location','westoutside');
-    title(hc2,'Injected current (mA)','FontSize',18);
-    caxis(inCurrentRange);
-    axes(a1);
-    drawnow
-    
 else
     
     indNode_elecFace = face(ismember(face(:,4),numOfTissue+numOfGel+indMonElec),1:3);
@@ -479,39 +416,69 @@ else
     color(C(:,1)) = sqrt(sum(C(:,2:4).^2,2));
     dataShow = [node(:,1:3) color];
     
-    figName = ['Electric field in Targeting: ' tarTag];
-    figure('Name',[figName '. Move your mouse to rotate.'],'NumberTitle','off');
-    set(gcf,'color','w');
-    colormap(jet);
-    plotmesh(dataShow,indNode_showFace,indNode_showElm,'LineStyle','none');
-%     dataShowVal = dataShow(unique(indNode_showElm(:)),4);
-    dataShowRange = [min(dataShow(unique(indNode_showElm(:)),4)) prctile(dataShow(unique(indNode_showElm(:)),4),95)];
+    fieldNodes = unique([indNode_grayElm(:); indNode_tumorElm(:)]);
+    fieldValues = dataShow(fieldNodes,4);
+    fieldValues = fieldValues(~isnan(fieldValues));
+    dataShowRange = [min(fieldValues) prctile(fieldValues,95)];
+    if dataShowRange(1) == dataShowRange(2)
+        dataShowRange = dataShowRange + [-0.5 0.5];
+    end
     dataShowForElec = interp1(inCurrentRange,dataShowRange,inCurrent(indMonElec));
     for i=1:length(indMonElec)
         %     indNodeTemp = indNode_elecElm(find(label_elec==i),:);
         %     dataShow(unique(indNodeTemp(:)),4) = dataShowForElec(i);
         dataShow(unique(elem(find(elem(:,5) == numOfTissue+numOfGel+indMonElec(i)),1:4)),4) = dataShowForElec(i);
     end % to show injected current intensities properly
-    hold on;
-    plotmesh(dataShow,indNode_elecFace,indNode_elecElm,'LineStyle','none');
-    axis off; rotate3d on;
-    % set(hp2,'SpecularColorReflectance',0,'SpecularExponent',50);
-    caxis(dataShowRange);
-    lightangle(-90,45)
-    lightangle(90,45)
-    lightangle(-90,-45)
-    hc1 = colorbar; set(hc1,'FontSize',18,'YAxisLocation','right');
-    title(hc1,'Electric field (V/m)','FontSize',18);
-    a1 = gca;
-    a2 = axes('Color','none','Position',get(a1,'Position'),'XLim',get(a1,'XLim'),'YLim',get(a1,'YLim'),'ZLim',get(a1,'ZLim'));
-    axis off;
-    hc2 = colorbar; set(hc2,'FontSize',18,'YAxisLocation','right','Location','westoutside');
-    title(hc2,'Injected current (mA)','FontSize',18);
-    caxis(inCurrentRange);
-    axes(a1);
-    drawnow
-    
 end
+
+% Render two electric-field views. Voltage is intentionally not displayed.
+fieldTag = simTag;
+if ~isSim, fieldTag = tarTag; end
+
+figName = ['Electric field in ET with translucent gray matter: ' fieldTag];
+figure('Name',[figName '. Move your mouse to rotate.'],'NumberTitle','off');
+set(gcf,'color','w');
+colormap(jet);
+plotmesh(dataShow,indNode_ETFace,indNode_ETElm,'LineStyle','none');
+hold on;
+plotmesh(node(:,1:3),indNode_grayFace,indNode_grayElm, ...
+    'facecolor',[0.5 0.5 0.5],'facealpha',0.15,'LineStyle','none');
+plotmesh(dataShow,indNode_elecFace,indNode_elecElm,'LineStyle','none');
+axis off; rotate3d on;
+caxis(dataShowRange);
+lightangle(-90,45); lightangle(90,45); lightangle(-90,-45);
+hc1 = colorbar; set(hc1,'FontSize',18,'YAxisLocation','right');
+title(hc1,'Electric field (V/m)','FontSize',18);
+a1 = gca;
+a2 = axes('Color','none','Position',get(a1,'Position'),'XLim',get(a1,'XLim'),'YLim',get(a1,'YLim'),'ZLim',get(a1,'ZLim'));
+axis off;
+hc2 = colorbar; set(hc2,'FontSize',18,'YAxisLocation','right','Location','westoutside');
+title(hc2,'Injected current (mA)','FontSize',18);
+caxis(inCurrentRange);
+axes(a1);
+drawnow
+
+figName = ['Electric field in gray matter + tumor (NCR+ED+ET): ' fieldTag];
+figure('Name',[figName '. Move your mouse to rotate.'],'NumberTitle','off');
+set(gcf,'color','w');
+colormap(jet);
+plotmesh(dataShow,indNode_grayFace,indNode_grayElm,'LineStyle','none');
+hold on;
+plotmesh(dataShow,indNode_tumorFace,indNode_tumorElm,'LineStyle','none');
+plotmesh(dataShow,indNode_elecFace,indNode_elecElm,'LineStyle','none');
+axis off; rotate3d on;
+caxis(dataShowRange);
+lightangle(-90,45); lightangle(90,45); lightangle(-90,-45);
+hc1 = colorbar; set(hc1,'FontSize',18,'YAxisLocation','right');
+title(hc1,'Electric field (V/m)','FontSize',18);
+a1 = gca;
+a2 = axes('Color','none','Position',get(a1,'Position'),'XLim',get(a1,'XLim'),'YLim',get(a1,'YLim'),'ZLim',get(a1,'ZLim'));
+axis off;
+hc2 = colorbar; set(hc2,'FontSize',18,'YAxisLocation','right','Location','westoutside');
+title(hc2,'Injected current (mA)','FontSize',18);
+caxis(inCurrentRange);
+axes(a1);
+drawnow
 
 disp('generating slice views...');
 
@@ -533,9 +500,6 @@ if isSim
     else
         load(resFile,'vol_all','ef_mag','ef_all');
     end
-    
-    figName = ['Voltage in Simulation: ' simTag];
-    sliceshow(vol_all.*nan_mask,[],cm,[],'Voltage (mV)',[figName '. Click anywhere to navigate.'],[],mri2mni); drawnow
     
     figName = ['Electric field in Simulation: ' simTag];
     for i=1:size(ef_all,4), ef_all(:,:,:,i) = ef_all(:,:,:,i).*nan_mask; end

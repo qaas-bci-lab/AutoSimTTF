@@ -742,25 +742,11 @@ options = struct('configTxt',configTxt,'elecPara',elecPara,'T2',T2,'meshOpt',mes
 [dirname,baseFilename] = fileparts(subj);
 if isempty(dirname), dirname = pwd; end
 
-Sopt = dir([dirname filesep baseFilename '_*_simOptions.mat']);
-if isempty(Sopt)
-    options = writeSimLog(subj,options,'ttfsim');
-else
-    isNew = zeros(length(Sopt),1);
-    for i=1:length(Sopt)
-        load([dirname filesep Sopt(i).name],'opt');
-        isNew(i) = isNewOptions(options,opt,'ttfsim');
-    end
-    % if all(isNew)
-    %     options = writeSimLog(subj,options,'ttfsim');
-    % else
-    %     load([dirname filesep Sopt(find(~isNew)).name],'opt');
-    %     if ~isempty(options.uniqueTag) && ~strcmp(options.uniqueTag,opt.uniqueTag)
-    %         warning(['The simulation with the same options has been run before under tag ''' opt.uniqueTag '''. The new tag you specified ''' options.uniqueTag ''' will be ignored.']);
-    %     end
-    %     options.uniqueTag = opt.uniqueTag;
-    % end
-end
+% Save an option file for every simulation tag.  The previous logic only
+% called writeSimLog when no option file existed at all, so a new simulation
+% could run successfully while its own *_simOptions.mat file was never
+% created.  reviewRes() then could not find that simulation by its tag.
+options = writeSimLog(subj,options,'ttfsim');
 uniqueTag = options.uniqueTag;
 
 fprintf('\n');

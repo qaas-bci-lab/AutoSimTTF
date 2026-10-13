@@ -6,7 +6,22 @@
 
 **AutoSimTTF** is a fully automatic pipeline for personalized electric field simulation and treatment planning of Tumor Treating Fields (TTFields). It integrates deep learning-based tumor segmentation (3D UNet), finite element modeling (GetDP), and convex optimization (CVX) to deliver a complete workflow from patient MRI to optimized electrode montage.
 
-> 📄 Xie et al., *"AutoSimTTF: a fully automatic pipeline for personalized electric field simulation and treatment planning of tumor treating fields,"* Phys. Med. Biol. 71 045004 (2026).
+> 📄 Xie et al., *"AutoSimTTF: a fully automatic pipeline for personalized electric field simulation and treatment planning of tumor treating fields,"* Phys. Med. Biol. 71 045004 (2026). DOI: [10.1088/1361-6560/ae4288](https://doi.org/10.1088/1361-6560/ae4288)
+
+If you use AutoSimTTF in your research, please cite the above paper. A BibTeX entry is provided below:
+
+```bibtex
+@article{Xie2026AutoSimTTF,
+  title   = {AutoSimTTF: a fully automatic pipeline for personalized electric field simulation and treatment planning of tumor treating fields},
+  author  = {Xie, Xu and Fan, Zhengbo and Mou, Huilin and Lan, Yue and Wang, Yuxing and Wang, Minmin and Pan, Yun and Chen, Guangdi and Chen, Weidong and Zhang, Shaomin},
+  journal = {Physics in Medicine \& Biology},
+  volume  = {71},
+  number  = {4},
+  pages   = {045004},
+  year    = {2026},
+  doi     = {10.1088/1361-6560/ae4288}
+}
+```
 
 ---
 
